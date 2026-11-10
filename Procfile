@@ -1,1 +1,0 @@
-web: mkdir -p database storage/framework/sessions storage/framework/views storage/framework/cache && touch database/database.sqlite && php artisan migrate --force --seed && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
