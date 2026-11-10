@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureDatabaseReady;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // to the Laravel process. Trust the proxy so generated asset URLs keep
         // the public HTTPS scheme instead of becoming mixed-content HTTP URLs.
         $middleware->trustProxies(at: '*');
+        $middleware->append(EnsureDatabaseReady::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
