@@ -20,8 +20,11 @@ class EnsureDatabaseReady
     {
         if (! self::$ready && $this->app->isProduction() && config('database.default') === 'pgsql') {
             try {
-                if (! Schema::hasTable('users')) {
-                    Artisan::call('migrate', ['--force' => true], new BufferedOutput);
+                $usersTableMissing = ! Schema::hasTable('users');
+
+                Artisan::call('migrate', ['--force' => true], new BufferedOutput);
+
+                if ($usersTableMissing) {
                     Artisan::call('db:seed', ['--force' => true], new BufferedOutput);
                 }
             } catch (Throwable $exception) {
