@@ -16,7 +16,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 class HomeController extends Controller
 {
@@ -164,25 +163,38 @@ class HomeController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:180'],
+            'email' => ['required', 'email', 'max:180', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'city' => ['required', 'string', 'max:80'],
             'skills' => ['nullable', 'string', 'max:500'],
             'needs' => ['nullable', 'string', 'max:500'],
+        ], [
+            'email.unique' => 'هذا البريد الإلكتروني مستخدم بالفعل. جرّب تسجيل الدخول بدلًا من إنشاء حساب جديد.',
+            'password.confirmed' => 'تأكيد كلمة المرور غير مطابق.',
         ]);
 
-        $password = $data['password'];
-        unset($data['password'], $data['password_confirmation']);
-        $user = User::create(['name' => $data['name'], 'email' => $data['email'], 'password' => Hash::make($password)]);
-        Auth::login($user);
-        $data['user_id'] = $user->id;
-        $data['initial'] = mb_substr($data['name'], 0, 1);
-        $data['rating'] = 5;
-        $member = DB::transaction(function () use ($data) {
-            $member = CommunityMember::create($data);
+        [$user, $member] = DB::transaction(function () use ($data) {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+            ]);
 
-            return $member;
+            $member = CommunityMember::create([
+                'user_id' => $user->id,
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'city' => $data['city'],
+                'skills' => $data['skills'] ?? null,
+                'needs' => $data['needs'] ?? null,
+                'initial' => mb_substr($data['name'], 0, 1),
+                'rating' => 5,
+            ]);
+
+            return [$user, $member];
         });
+
+        Auth::login($user);
 
         $request->session()->regenerate();
 

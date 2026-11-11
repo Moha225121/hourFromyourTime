@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded',setup);
 
 // Live Laravel data layer: the visual design remains client-side, while all user actions are persisted.
 const apiToken=()=>document.querySelector('meta[name="csrf-token"]')?.content;
-async function apiPost(url,payload){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':apiToken()},body:JSON.stringify(payload)});if(response.status===401){openLogin();throw new Error('يرجى تسجيل الدخول أولًا.')}const json=await response.json();if(!response.ok)throw new Error(json.message||'تعذر حفظ البيانات');return json}
+async function apiPost(url,payload){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':apiToken()},body:JSON.stringify(payload)});if(response.status===401){openLogin();throw new Error('يرجى تسجيل الدخول أولًا.')}const text=await response.text();let json={};try{json=JSON.parse(text)}catch{}if(!response.ok){const validation=Object.values(json.errors||{}).flat()[0];throw new Error(validation||json.message||'تعذر إكمال العملية الآن. حاول مرة أخرى.')}return json}
 function syncLiveData(data){
   members.splice(0,members.length,...data.members.map(m=>({...m,tag:m.category,desc:m.description,hours:m.hours_contributed})));
   requests.splice(0,requests.length,...data.requests.map(r=>({...r,desc:r.description})));

@@ -33,4 +33,38 @@ class MemberControlPanelTest extends TestCase
             ->get(route('home'))
             ->assertRedirect(route('app.dashboard'));
     }
+
+    public function test_guest_can_join_the_community_and_receive_a_member_profile(): void
+    {
+        $this->postJson('/api/signup', [
+            'name' => 'عضو جديد',
+            'email' => 'new-member@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'city' => 'طرابلس',
+            'skills' => 'تعليم',
+            'needs' => 'تصميم',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('message', 'تم إنشاء حسابك وتسجيل دخولك بنجاح.');
+
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', ['email' => 'new-member@example.com']);
+        $this->assertDatabaseHas('community_members', ['email' => 'new-member@example.com', 'city' => 'طرابلس']);
+    }
+
+    public function test_existing_email_gets_a_clear_validation_error(): void
+    {
+        User::factory()->create(['email' => 'already-used@example.com']);
+
+        $this->postJson('/api/signup', [
+            'name' => 'عضو آخر',
+            'email' => 'already-used@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'city' => 'طرابلس',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.email.0', 'هذا البريد الإلكتروني مستخدم بالفعل. جرّب تسجيل الدخول بدلًا من إنشاء حساب جديد.');
+    }
 }

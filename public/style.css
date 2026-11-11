@@ -19,3 +19,6 @@ button,a,input,select,textarea{touch-action:manipulation}
   .join-actions .button{width:100%;justify-content:center}
   .footer-col a,.footer-signup{min-height:32px;display:flex;align-items:center}
 }
+
+.button-join{background:var(--amber);border-color:var(--amber);color:#3b2b20;box-shadow:0 8px 18px #d8894e30}
+.button-join:hover{background:#e99558;border-color:#e99558;color:#2d241e;box-shadow:0 12px 24px #d8894e45}
