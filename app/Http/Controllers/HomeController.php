@@ -75,11 +75,54 @@ class HomeController extends Controller
         return view('staff.dashboard', ['mode' => 'operations', 'title' => 'لوحة التشغيل', 'openBookings' => ServiceBooking::whereIn('status', ['pending', 'awaiting_confirmation'])->count(), 'members' => CommunityMember::count(), 'offers' => ServiceOffer::where('status', 'published')->count(), 'bookings' => ServiceBooking::with(['offer', 'requester', 'provider'])->latest()->limit(20)->get()]);
     }
 
-    public function admin()
+    public function admin(Request $request)
     {
         abort_unless(Auth::user()->role === 'admin', 403);
 
-        return view('staff.dashboard', ['mode' => 'admin', 'title' => 'إدارة النظام', 'openBookings' => ServiceBooking::whereIn('status', ['pending', 'awaiting_confirmation'])->count(), 'members' => CommunityMember::count(), 'offers' => ServiceOffer::count(), 'bookings' => ServiceBooking::with(['offer', 'requester', 'provider'])->latest()->limit(20)->get()]);
+        $search = trim($request->string('q')->toString());
+        $users = User::query()
+            ->with('member')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereHas('member', fn ($member) => $member->where('city', 'like', "%{$search}%")->orWhere('skills', 'like', "%{$search}%"));
+                });
+            })
+            ->latest()
+            ->paginate(12, ['*'], 'users_page')
+            ->withQueryString();
+
+        $ledgerBalances = TimeLedger::query()
+            ->select('member_id')
+            ->selectRaw('COALESCE(SUM(minutes), 0) as balance_minutes')
+            ->groupBy('member_id')
+            ->pluck('balance_minutes', 'member_id');
+
+        return view('staff.dashboard', [
+            'mode' => 'admin',
+            'title' => 'لوحة تحكم المدير',
+            'search' => $search,
+            'users' => $users,
+            'ledgerBalances' => $ledgerBalances,
+            'offersList' => ServiceOffer::with(['member.user', 'category'])->latest()->paginate(12, ['*'], 'offers_page')->withQueryString(),
+            'requestsList' => HelpRequest::with(['requester', 'helper'])->latest()->paginate(12, ['*'], 'requests_page')->withQueryString(),
+            'bookings' => ServiceBooking::with(['offer', 'requester', 'provider'])->latest()->paginate(12, ['*'], 'bookings_page')->withQueryString(),
+            'ledgerEntries' => TimeLedger::with(['member', 'booking.offer', 'member.user'])->latest()->paginate(12, ['*'], 'ledger_page')->withQueryString(),
+            'activities' => TimeActivity::with('member.user')->latest()->paginate(12, ['*'], 'activities_page')->withQueryString(),
+            'categories' => SkillCategory::withCount('offers')->orderBy('sort_order')->get(),
+            'stories' => CommunityStory::latest()->get(),
+            'stats' => [
+                'users' => User::count(),
+                'members' => CommunityMember::count(),
+                'offers' => ServiceOffer::count(),
+                'requests' => HelpRequest::count(),
+                'open_requests' => HelpRequest::where('status', 'open')->count(),
+                'bookings' => ServiceBooking::count(),
+                'settled' => ServiceBooking::where('status', 'settled')->count(),
+                'minutes' => (int) TimeLedger::sum('minutes'),
+            ],
+        ]);
     }
 
     public function storeOffer(Request $request)
